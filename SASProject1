@@ -1,0 +1,95 @@
+/*****************
+Convert to SAS format column names
+******************/
+
+options validvarname = V7;
+
+/*****************
+Import raw data 
+******************/
+
+proc import datafile = "/home/ivancharkin1/Stats2/Project 1/Train_Auto.csv"
+ out = Trainautoraw
+ dbms = CSV
+ replace;
+ ;
+run;
+
+/*****************
+Replace ? with NA 
+******************/
+
+data Trainautoraw;
+set Trainautoraw;
+array a(*) _character_;
+do i=1 to dim(a);
+if a(i) = "?" then a(i) = "NA";
+end;
+drop i;
+
+/*****************
+Create a new Curb weight continuous 
+******************/
+
+data Trainautoraw;
+set Trainautoraw;
+num_curb_weight = input (curb_weight, 8.);
+run;
+
+/*****************************************
+Generate histograms to check for normality and skewness of all continuous datasets
+******************************************/
+
+proc univariate data=Trainautoraw;
+      var 	wheel_base	length	width	height	num_curb_weight	engine_size		
+      bore	stroke	compression_ratio	horsepower	peak_rpm	city_mpg	
+      highway_mpg	price
+;
+      histogram;
+   run;
+
+/*****************
+Trying simple log for the skewed data columns 
+******************/
+
+data Trainautoraw;
+set Trainautoraw;
+log_engine_size= log(engine_size);
+log_horsepower=log(horsepower);
+log_price=log(price) ;
+
+run;
+
+/*****************************************
+Generate histograms for log functions
+******************************************/
+
+proc univariate data=Trainautoraw;
+      var 	log_engine_size log_horsepower log_price
+;
+      histogram;
+   run;
+
+/*****************************************
+Generate scatterplots to check for obvious multicollinearity
+******************************************/
+
+proc sgscatter data=Trainautoraw;
+  title "Scatterplot Matrix for Auto data";
+  matrix wheel_base	length	width	height	num_curb_weight	engine_size		
+      bore	stroke	compression_ratio	horsepower	peak_rpm	city_mpg	
+      highway_mpg	price
+        / diagonal = (histogram)  ;
+run;
+
+/*********************************
+Create a SET modeling variable for compression ratio
+*********************************/
+data Trainautoraw;
+ set Trainautoraw;
+ select;
+    when (compression_ratio>15) set_compr_ratio="high";
+    when (compression_ratio<15) set_compr_ratio="low";
+ end;
+run;
+
